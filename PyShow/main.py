@@ -4,6 +4,8 @@ from PyQt5.QtCore import QTimer
 import pyqtgraph as pg
 import sys, os, serial
 import sqlite3, time
+from scipy import stats
+import math
 
 class SqlLiteTimeSeries():
     def __init__(self, p2f, p2c ):
@@ -47,10 +49,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def handle_serial(self):
       line = self.ser.readline().decode("utf-8")
-      #print(line)
-      yx = list(map(float, line.split(',') ))
-      self.store2db(yx)
-      self.draw2plot(yx)
+      #print("first:",line[:1],"sym")
+      if ('&' == line[:1] ):
+        line = line[1:]  
+        print(line)
+        yx = list(map(float, line.split(',') ))
+        self.store2db(yx)
+        self.draw2plot(yx)
 
     def store2db(self, yx):
       self.store.store(yx)
@@ -65,18 +70,28 @@ class MainWindow(QtWidgets.QMainWindow):
       self.list_chan3.append( yx[2] )
       self.list_chan4.append( yx[3] )
 
+      descr_1 = stats.describe(self.list_chan1)
+      descr_2 = stats.describe(self.list_chan2)
+      descr_3 = stats.describe(self.list_chan3)
+      descr_4 = stats.describe(self.list_chan4)
+
+      Leg1 = "Sensor1 sd:{}, mean:{}".format( str(round(math.sqrt(descr_1.variance),3)), str(round(descr_1.mean, 3)) )
+      Leg2 = "Sensor2 sd:{}, mean:{}".format( str(round(math.sqrt(descr_2.variance),3)), str(round(descr_2.mean, 3)) )
+      Leg3 = "Sensor3 sd:{}, mean:{}".format( str(round(math.sqrt(descr_3.variance),3)), str(round(descr_3.mean, 3)) )
+      Leg4 = "Sensor4 sd:{}, mean:{}".format( str(round(math.sqrt(descr_4.variance),3)), str(round(descr_4.mean, 3)) )
+
       self.graphWidget.clear()
-      self.graphWidget.plot(self.listX, self.list_chan1, name="Sensor 1", pen=self.pen1 )
-      self.graphWidget.plot(self.listX, self.list_chan2, name="Sensor 2", pen=self.pen2 )
-      self.graphWidget.plot(self.listX, self.list_chan3, name="Sensor 3", pen=self.pen3 )
-      self.graphWidget.plot(self.listX, self.list_chan4, name="Sensor 4", pen=self.pen4 )
+      self.graphWidget.plot(self.listX, self.list_chan1, name=Leg1, pen=self.pen1 )
+      self.graphWidget.plot(self.listX, self.list_chan2, name=Leg2, pen=self.pen2 )
+      self.graphWidget.plot(self.listX, self.list_chan3, name=Leg3, pen=self.pen3 )
+      self.graphWidget.plot(self.listX, self.list_chan4, name=Leg4, pen=self.pen4 )
 
     def init_serial(self):
         print("Open Serial")
         self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
         if ( self.ser.is_open ):
           self.timer = QTimer()
-          self.timer.setInterval(50)
+          self.timer.setInterval(10)
           self.timer.setSingleShot(False)
           self.timer.start()
           self.timer.timeout.connect(self.handle_serial)
@@ -114,7 +129,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.pen1 = pg.mkPen(color=(255, 0, 0), width=2)
         self.pen2 = pg.mkPen(color=(255, 255, 0), width=2)
-        self.pen3 = pg.mkPen(color=(255, 0, 255), width=2)
+        self.pen3 = pg.mkPen(color=(100, 100, 180), width=2)
         self.pen4 = pg.mkPen(color=(0, 255, 255), width=2)
 
         self.graphWidget.plot(self.listX, self.list_chan1, name="Sensor 1", pen=self.pen1 )
